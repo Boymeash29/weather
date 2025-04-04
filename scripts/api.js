@@ -1,3 +1,8 @@
+/**
+ * Functions to connect to the National Weather Service API
+ * Documentation: https://www.weather.gov/documentation/services-web-api
+ */
+
 // Base URL for NWS API
 const NWS_API_BASE_URL = 'https://api.weather.gov';
 
