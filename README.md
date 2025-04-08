@@ -18,12 +18,6 @@ A web application that displays real-time weather alerts and warnings from the N
 - National Weather Service API for real-time weather data
 - MapBox API for geocoding (location search)
 
-## Setup Instructions
-
-1. Clone this repository
-2. Replace `YOUR_MAPBOX_API_KEY` in `scripts/api.js` with your MapBox API key
-3. Update the User-Agent header in `scripts/api.js` with your website and contact info
-4. Open `index.html` in your browser or deploy to a web server
 
 ## API Documentation
 
