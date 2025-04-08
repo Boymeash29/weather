@@ -3,45 +3,1252 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>US Weather Alerts Map - National Weather Service Warnings</title>
-  
+  <title>US Weather Alerts & Radar</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+
   <!-- Leaflet CSS and JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
-  <!-- Your stylesheets -->
-  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f0f5ff;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+
+    .site-header {
+      background-color: #0a558c;
+      color: white;
+      padding: 20px 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .site-header h1 {
+      margin-bottom: 5px;
+      font-size: 2.2em;
+    }
+
+    .nav-tabs {
+      display: flex;
+      list-style: none;
+      margin-bottom: 20px;
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .nav-tabs li {
+      flex: 1;
+      text-align: center;
+    }
+
+    .nav-tabs a {
+      display: block;
+      padding: 15px;
+      color: #0a558c;
+      text-decoration: none;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .nav-tabs a:hover, .nav-tabs a.active {
+      background-color: #0a558c;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .search-section {
+      display: flex;
+      flex-wrap: wrap;
+      margin: 20px 0;
+      gap: 10px;
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #0a558c;
+      border-radius: 6px;
+      font-size: 16px;
+      min-width: 150px;
+    }
+
+    .search-button {
+      padding: 12px 24px;
+      background-color: #0a558c;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+
+    .search-button:hover {
+      background-color: #0c4a6e;
+    }
+
+    .filter-controls {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    .filter-label {
+      margin-right: 8px;
+      font-weight: bold;
+      color: #0a558c;
+    }
+
+    #map-container, #radar-container {
+      height: 600px;
+      width: 100%;
+      border: 2px solid #0a558c;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .radar-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .radar-btn {
+      padding: 8px 15px;
+      background-color: #0a558c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .alert-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      max-width: 350px;
+      background-color: #fff;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      border-left: 6px solid #dc2626;
+      border-radius: 8px;
+      padding: 15px;
+      z-index: 1000;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .alert-notification-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .alert-notification-title {
+      font-weight: bold;
+      font-size: 1.2em;
+      color: #dc2626;
+    }
+
+    .alert-notification-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5em;
+      color: #666;
+    }
+
+    .alert-notification-content {
+      margin-bottom: 10px;
+    }
+
+    .alert-notification-link {
+      color: #0a558c;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 5px;
+    }
+
+    .alerts-section {
+      margin-bottom: 30px;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .alerts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .alerts-header h2 {
+      color: #0a558c;
+      font-size: 1.8em;
+    }
+
+    .severity-critical { background-color: #dc2626; color: white; }
+    .severity-extreme { background-color: #f97316; color: white; }
+    .severity-severe { background-color: #f59e0b; color: white; }
+    .severity-moderate { background-color: #eab308; color: black; }
+    .severity-minor { background-color: #84cc16; color: black; }
+    .severity-unknown { background-color: #94a3b8; color: white; }
+
+    .severity-label {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+
+    .recent-label {
+      background-color: #10b981;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+
+    .expired-label {
+      background-color: #64748b;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+
+    .alert-card {
+      margin-bottom: 20px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .alert-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .alert-card.expired {
+      opacity: 0.7;
+      background-color: #f8fafc;
+    }
+
+    .alert-card-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 20px;
+      font-weight: bold;
+      align-items: center;
+    }
+
+    .alert-card-title {
+      font-size: 1.2em;
+      flex: 1;
+    }
+
+    .alert-card-time {
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    .alert-description h4 {
+      margin-top: 15px;
+      margin-bottom: 8px;
+      color: #0a558c;
+      font-size: 1.1em;
+    }
+
+    .alert-description p {
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .alert-source {
+      margin-top: 15px;
+      font-style: italic;
+      font-size: 0.9em;
+      color: #64748b;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 10px;
+    }
+
+    .alert-card-body {
+      padding: 20px;
+    }
+
+    .alert-meta {
+      margin-bottom: 15px;
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 5px;
+    }
+
+    .alert-meta-row {
+      display: contents;
+    }
+
+    .alert-meta-label {
+      font-weight: bold;
+      color: #0a558c;
+    }
+
+    .legend {
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      font-size: 0.9em;
+    }
+
+    .legend h4 {
+      margin: 0 0 8px 0;
+      color: #0a558c;
+      font-size: 1.1em;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+
+    .site-footer {
+      padding: 20px 0;
+      background-color: #0a558c;
+      text-align: center;
+      margin-top: 30px;
+      font-size: 0.9em;
+      color: white;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      font-size: 18px;
+      color: #64748b;
+    }
+
+    .status-message {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      background-color: #fee2e2;
+      color: #b91c1c;
+      border-left: 4px solid #dc2626;
+      font-weight: bold;
+    }
+    
+    .radar-layer-control {
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+    }
+    
+    .radar-option {
+      display: block;
+      margin: 5px 0;
+    }
+    
+    /* New styles for recent alerts */
+    .alert-card.recent {
+      border-left: 6px solid #10b981;
+    }
+    
+    .alert-card.very-recent {
+      border-left: 6px solid #dc2626;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+    
+    .warning-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
     <div class="container">
-      <h1>US Weather Alerts Map</h1>
-      <p>Real-time weather warnings from the National Weather Service</p>
+      <h1>US Weather Alerts & Radar</h1>
+      <p>Real-time weather warnings and radar from the National Weather Service</p>
     </div>
   </header>
   
   <main class="container">
-    <div class="search-section">
-      <input type="text" class="search-input" placeholder="Enter city, state, or zip code...">
-      <button class="search-button">Search</button>
+    <ul class="nav-tabs">
+      <li><a href="#weather-alerts" class="active">Weather Alerts</a></li>
+      <li><a href="#radar">Radar</a></li>
+    </ul>
+
+    <div id="weather-alerts" class="tab-content active">
+      <div class="search-section">
+        <input type="text" class="search-input" id="location-search" placeholder="Enter state code (e.g., CA, NY, TX)...">
+        <button class="search-button" id="location-search-btn">Search Location</button>
+        
+        <div class="filter-controls">
+          <div class="filter-label">Search by Event:</div>
+          <input type="text" class="search-input" id="event-search" placeholder="Enter event type (e.g., Flood, Tornado)...">
+          <button class="search-button" id="event-search-btn">Search Event</button>
+          <button class="search-button" id="reset-search-btn">Reset Search</button>
+        </div>
+      </div>
+      
+      <div class="map-container" id="map-container"></div>
+      
+      <div class="alerts-section">
+        <div class="loading">Loading weather alerts...</div>
+      </div>
     </div>
-    
-    <div class="map-container" id="map-container"></div>
-    
-    <div class="alerts-section">
-      <!-- Alerts will be populated here via JavaScript -->
+
+    <div id="radar" class="tab-content">
+      <div class="radar-controls">
+        <button class="radar-btn" id="radar-refresh">Refresh Radar</button>
+        <div class="radar-layer-control">
+          <label class="radar-option">
+            <input type="radio" name="radar-type" value="nexrad" checked> NEXRAD Base Reflectivity
+          </label>
+          <label class="radar-option">
+            <input type="radio" name="radar-type" value="velocity"> NEXRAD Velocity
+          </label>
+          <label class="radar-option">
+            <input type="radio" name="radar-type" value="reflectivity"> NEXRAD Composite Reflectivity
+          </label>
+          <label class="radar-option">
+            <input type="radio" name="radar-type" value="precipitation"> Precipitation
+          </label>
+          <label class="radar-option">
+            <input type="radio" name="radar-type" value="clouds"> Cloud Cover
+          </label>
+        </div>
+        <div class="warning-toggle">
+          <input type="checkbox" id="show-warnings" checked>
+          <label for="show-warnings">Show Warning Areas</label>
+        </div>
+      </div>
+      <div class="map-container" id="radar-container"></div>
     </div>
   </main>
   
   <footer class="site-footer">
     <div class="container">
-      <p>Data provided by the National Weather Service API. This site is not affiliated with NOAA or NWS.</p>
+      <p>Data provided by the National Weather Service API and Iowa Environmental Mesonet. This site is not affiliated with NOAA or NWS.</p>
     </div>
   </footer>
   
-  <!-- Your scripts (loaded after DOM) -->
-  <script src="scripts/api.js"></script>
-  <script src="scripts/map.js"></script>
-  <script src="scripts/alerts.js"></script>
+  <script>
+    // Global variables
+    let map;
+    let radarMap;
+    let alertsLayer;
+    let radarAlertsLayer;
+    let allAlerts = [];
+    let activeAlerts = [];
+    let lastFetchTime = 0;
+    let refreshInterval = null;
+    let currentSearchTerm = '';
+    let currentSearchType = 'none';
+    let radarLayer;
+    let currentRadarType = 'nexrad';
+    
+    // Base URL for NWS API
+    const NWS_API_BASE_URL = 'https://api.weather.gov';
+    
+    // Iowa Environmental Mesonet Radar URLs - these are public and require no API key
+    const RADAR_URLS = {
+      'nexrad': 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
+      'velocity': 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0v-900913/{z}/{x}/{y}.png',
+      'reflectivity': 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0r-900913/{z}/{x}/{y}.png',
+      'precipitation': 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png',
+      'clouds': 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png'
+    };
+    
+    // Headers for NWS API
+    const headers = {
+      'User-Agent': '(Weather Alert Demo App, github-user@example.com)',
+      'Accept': 'application/geo+json'
+    };
+    
+    // Define event color mapping
+    const eventColors = {
+      'Tornado Warning': '#FF0000',
+      'Tornado': '#FF0000',
+      'Flash Flood Warning': '#FF00FF',
+      'Hurricane Warning': '#FF4500',
+      'Extreme Wind Warning': '#FF1493',
+      'Severe Thunderstorm Warning': '#FF8C00',
+      'Blizzard Warning': '#00BFFF',
+      'Ice Storm Warning': '#9370DB',
+      'Winter Storm Warning': '#1E90FF',
+      'Flood Warning': '#0000FF',
+      'High Wind Warning': '#FFD700',
+      'Heat Warning': '#FF6347',
+      'Fire Warning': '#FF4500',
+      'Tornado Watch': '#FFA500',
+      'Severe Thunderstorm Watch': '#FFD700',
+      'Flash Flood Watch': '#4169E1',
+      'Winter Storm Watch': '#4682B4',
+      'Wind Advisory': '#FFFF00',
+      'Flood Advisory': '#6495ED',
+      'Heat Advisory': '#FF7F50',
+      'Winter Weather Advisory': '#87CEFA',
+      'default': '#808080'
+    };
+
+    // Severity mapping
+    const severityMap = {
+      'extreme': 'severity-critical',
+      'severe': 'severity-extreme',
+      'moderate': 'severity-severe',
+      'minor': 'severity-moderate',
+      'unknown': 'severity-unknown'
+    };
+
+    // Initialize the application
+    function initApp() {
+      initWeatherMap();
+      initRadarMap();
+      setupTabs();
+      setupEventListeners();
+      
+      fetchAllActiveAlerts()
+        .then(alerts => {
+          displayAlertsList(alerts);
+          displayAlertsOnMap(alerts);
+          updateRadarAlerts(alerts);
+        })
+        .catch(error => {
+          console.error('Error loading initial data:', error);
+          showStatusMessage('Failed to load weather alerts. Please try again later.');
+        });
+      
+      setupAutoRefresh();
+    }
+
+    // Initialize the weather alerts map
+    function initWeatherMap() {
+      map = L.map('map-container').setView([39.8283, -98.5795], 4);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+      
+      alertsLayer = L.layerGroup().addTo(map);
+      addLegendToMap();
+    }
+
+    // Initialize the radar map with Iowa Environmental Mesonet
+    function initRadarMap() {
+      radarMap = L.map('radar-container').setView([39.8283, -98.5795], 4);
+      
+      // Add base map
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(radarMap);
+      
+      // Add radar overlay with timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      radarLayer = L.tileLayer(`${RADAR_URLS.nexrad}?_=${timestamp}`, {
+        attribution: 'NEXRAD imagery courtesy of <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>',
+        opacity: 0.7,
+        zIndex: 100
+      }).addTo(radarMap);
+      
+      // Layer for showing alerts on radar map
+      radarAlertsLayer = L.layerGroup().addTo(radarMap);
+    }
+
+    // Update alerts on radar map
+    function updateRadarAlerts(alerts) {
+      radarAlertsLayer.clearLayers();
+      
+      const showWarnings = document.getElementById('show-warnings').checked;
+      if (!showWarnings) return;
+      
+      alerts.forEach(alert => {
+        const geometry = alert.geometry;
+        const properties = alert.properties;
+        
+        if (!geometry || !geometry.coordinates) return;
+        
+        const color = getEventColor(properties.event);
+        
+        if (geometry.type === 'Polygon') {
+          try {
+            const coordinates = geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+            
+            const polygon = L.polygon(coordinates, {
+              color: color,
+              weight: 2,
+              opacity: 0.9,
+              fillOpacity: 0.3,
+              fillColor: color
+            }).addTo(radarAlertsLayer);
+            
+            polygon.bindPopup(`
+              <div style="min-width: 250px;">
+                <h3 style="margin: 0 0 5px 0; color: ${color}">${properties.event}</h3>
+                <p><strong>Area:</strong> ${properties.areaDesc}</p>
+                <p><strong>Effective:</strong> ${new Date(properties.effective).toLocaleString()}</p>
+                <p><strong>Expires:</strong> ${new Date(properties.expires).toLocaleString()}</p>
+              </div>
+            `);
+          } catch (e) {
+            console.error("Error adding polygon to radar map:", e);
+          }
+        }
+      });
+    }
+
+    // Load radar layer based on selected type
+    function loadRadarLayer(type) {
+      currentRadarType = type;
+      
+      if (radarLayer) {
+        radarMap.removeLayer(radarLayer);
+      }
+      
+      const timestamp = new Date().getTime();
+      let attribution = '';
+      
+      switch(type) {
+        case 'nexrad':
+          attribution = 'NEXRAD Base Reflectivity courtesy of <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>';
+          break;
+        case 'velocity':
+          attribution = 'NEXRAD Velocity courtesy of <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>';
+          break;
+        case 'reflectivity':
+          attribution = 'NEXRAD Composite Reflectivity courtesy of <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>';
+          break;
+        case 'precipitation':
+        case 'clouds':
+          attribution = 'Weather data © OpenWeatherMap';
+          break;
+      }
+      
+      radarLayer = L.tileLayer(`${RADAR_URLS[type]}?_=${timestamp}`, {
+        attribution: attribution,
+        opacity: 0.7,
+        zIndex: 100
+      }).addTo(radarMap);
+    }
+
+    // Set up tab navigation
+    function setupTabs() {
+      const tabs = document.querySelectorAll('.nav-tabs a');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          
+          tabs.forEach(t => t.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+          
+          tab.classList.add('active');
+          const tabId = tab.getAttribute('href');
+          document.querySelector(tabId).classList.add('active');
+          
+          if (tabId === '#radar') {
+            setTimeout(() => {
+              radarMap.invalidateSize();
+            }, 100);
+          } else if (tabId === '#weather-alerts') {
+            setTimeout(() => {
+              map.invalidateSize();
+            }, 100);
+          }
+        });
+      });
+    }
+
+    // Set up event listeners
+    function setupEventListeners() {
+      document.getElementById('location-search-btn').addEventListener('click', () => {
+        const stateCode = document.getElementById('location-search').value.trim();
+        if (stateCode) {
+          filterAlertsByState(stateCode);
+        } else {
+          showStatusMessage('Please enter a state code to search.');
+        }
+      });
+      
+      document.getElementById('location-search').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('location-search-btn').click();
+        }
+      });
+      
+      document.getElementById('event-search-btn').addEventListener('click', () => {
+        const eventType = document.getElementById('event-search').value.trim();
+        if (eventType) {
+          filterAlertsByEvent(eventType);
+        } else {
+          showStatusMessage('Please enter an event type to search.');
+        }
+      });
+      
+      document.getElementById('event-search').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('event-search-btn').click();
+        }
+      });
+      
+      document.getElementById('reset-search-btn').addEventListener('click', resetSearch);
+      
+      document.getElementById('radar-refresh').addEventListener('click', () => {
+        // Force refresh by adding a timestamp to the URL
+        loadRadarLayer(currentRadarType);
+      });
+      
+      // Radio button event listeners for radar type
+      document.querySelectorAll('input[name="radar-type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            loadRadarLayer(e.target.value);
+          }
+        });
+      });
+      
+      // Toggle for showing warning areas on radar
+      document.getElementById('show-warnings').addEventListener('change', (e) => {
+        if (e.target.checked) {
+          radarAlertsLayer.addTo(radarMap);
+        } else {
+          radarMap.removeLayer(radarAlertsLayer);
+        }
+      });
+    }
+
+    // Fetch all active alerts
+    async function fetchAllActiveAlerts() {
+      try {
+        const response = await fetch(`${NWS_API_BASE_URL}/alerts/active`, { headers });
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching alerts: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        lastFetchTime = Date.now();
+        
+        const now = new Date();
+        const freshAlerts = (data.features || []).filter(alert => {
+          const expires = new Date(alert.properties.expires);
+          return expires > now;
+        });
+        
+        const { newAlerts } = compareAlerts(freshAlerts);
+        
+        allAlerts = freshAlerts;
+        activeAlerts = freshAlerts;
+        
+        newAlerts.forEach(alert => {
+          showAlertNotification(alert);
+        });
+        
+        return freshAlerts;
+      } catch (error) {
+        console.error('Failed to fetch alerts:', error);
+        showStatusMessage('Failed to fetch alerts. Please try again later.');
+        return [];
+      }
+    }
+
+    // Compare alerts to find new ones
+    function compareAlerts(newAlerts) {
+      const newAlertIds = new Set(newAlerts.map(alert => alert.properties.id));
+      const previousAlertIds = new Set(allAlerts.map(alert => alert.properties.id));
+      
+      const newAlertsFound = newAlerts.filter(alert => !previousAlertIds.has(alert.properties.id));
+      const expiredAlertsFound = allAlerts.filter(alert => !newAlertIds.has(alert.properties.id));
+      
+      return {
+        newAlerts: newAlertsFound,
+        expiredAlerts: expiredAlertsFound
+      };
+    }
+
+    // Show alert notification
+    function showAlertNotification(alert) {
+      const properties = alert.properties;
+      const eventColor = getEventColor(properties.event);
+      const severityClass = getSeverityClass(alert);
+      
+      const notification = document.createElement('div');
+      notification.className = 'alert-notification';
+      notification.style.borderLeftColor = eventColor;
+      
+      notification.innerHTML = `
+        <div class="alert-notification-header">
+          <div class="alert-notification-title">${properties.event} <span class="severity-label ${severityClass}">${properties.severity || 'Unknown'}</span></div>
+          <button class="alert-notification-close">&times;</button>
+        </div>
+        <div class="alert-notification-content">
+          <p><strong>Area:</strong> ${properties.areaDesc}</p>
+          <p><strong>Issued:</strong> ${new Date(properties.sent).toLocaleString()}</p>
+          <p><strong>Severity:</strong> <span class="${severityClass}">${properties.severity || 'Unknown'}</span></p>
+        </div>
+        <a href="#alert-${properties.id}" class="alert-notification-link">View Details</a>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      notification.querySelector('.alert-notification-close').addEventListener('click', () => {
+        document.body.removeChild(notification);
+      });
+      
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 10000);
+    }
+
+    // Get color for event type
+    function getEventColor(event) {
+      return eventColors[event] || eventColors.default;
+    }
+
+    // Add legend to map
+    function addLegendToMap() {
+      const legend = L.control({position: 'bottomright'});
+      
+      legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = '<h4>Alert Types</h4>';
+        
+        const legendEvents = [
+          'Tornado Warning',
+          'Flash Flood Warning',
+          'Severe Thunderstorm Warning',
+          'Hurricane Warning',
+          'Blizzard Warning',
+          'Winter Storm Warning',
+          'Flood Warning',
+          'Heat Warning',
+          'Fire Warning',
+          'Tornado Watch'
+        ];
+        
+        legendEvents.forEach(event => {
+          div.innerHTML += `
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: ${eventColors[event] || eventColors.default}"></div>
+              <div>${event}</div>
+            </div>
+          `;
+        });
+        
+        return div;
+      };
+      
+      legend.addTo(map);
+    }
+
+    // Display alerts on map with outlined regions
+    function displayAlertsOnMap(alerts) {
+      alertsLayer.clearLayers();
+      
+      alerts.forEach(alert => {
+        const geometry = alert.geometry;
+        const properties = alert.properties;
+        
+        if (!geometry || !geometry.coordinates) return;
+        
+        const color = getEventColor(properties.event);
+        const severityClass = getSeverityClass(alert);
+        
+        if (geometry.type === 'Polygon') {
+          try {
+            const coordinates = geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+            
+            // Make recent alerts more prominent
+            const sentDate = new Date(properties.sent);
+            const now = new Date();
+            const hoursOld = (now - sentDate) / (1000 * 60 * 60);
+            
+            let weight = 2;
+            let dashArray = null;
+            
+            if (hoursOld < 1) {
+              weight = 4;
+            } else if (hoursOld < 3) {
+              weight = 3;
+            }
+            
+            // Make expired alerts dashed
+            const expiresDate = new Date(properties.expires);
+            if (expiresDate <= now) {
+              dashArray = '5,5';
+            }
+            
+            const polygon = L.polygon(coordinates, {
+              color: color,
+              weight: weight,
+              opacity: 0.9,
+              fillOpacity: 0.4,
+              dashArray: dashArray
+            }).addTo(alertsLayer);
+            
+            polygon.bindPopup(`
+              <div style="min-width: 250px;">
+                <h3 style="margin: 0 0 5px 0; color: ${color}">${properties.event}</h3>
+                <p><strong>Severity:</strong> <span class="${severityClass}">${properties.severity || 'Unknown'}</span></p>
+                <p><strong>Area:</strong> ${properties.areaDesc}</p>
+                <p><strong>Effective:</strong> ${new Date(properties.effective).toLocaleString()}</p>
+                <p><strong>Expires:</strong> ${new Date(properties.expires).toLocaleString()}</p>
+                <p style="margin-top: 10px;"><a href="#alert-${properties.id}" style="color: ${color}; font-weight: bold;">View Full Details</a></p>
+              </div>
+            `);
+          } catch (e) {
+            console.error("Error adding polygon to map:", e);
+          }
+        }
+      });
+    }
+
+    // Filter alerts by state
+    function filterAlertsByState(stateCode) {
+      const stateUpper = stateCode.toUpperCase();
+      const filteredAlerts = allAlerts.filter(alert => {
+        return alert.properties.areaDesc.includes(stateUpper);
+      });
+      
+      if (filteredAlerts.length > 0) {
+        currentSearchTerm = stateUpper;
+        currentSearchType = 'state';
+        
+        displayAlertsList(filteredAlerts);
+        displayAlertsOnMap(filteredAlerts);
+        updateRadarAlerts(filteredAlerts);
+        
+        // Zoom to the state
+        const stateCenters = {
+          'AK': [64.2008, -149.4937, 3],
+          'AL': [32.8067, -86.7911, 7],
+          'AR': [34.9697, -92.3731, 7],
+          'AZ': [34.0489, -111.0937, 6],
+          'CA': [36.7783, -119.4179, 6],
+          'CO': [39.5501, -105.7821, 7],
+          'CT': [41.6032, -73.0877, 8],
+          'DC': [38.9072, -77.0369, 10],
+          'DE': [38.9108, -75.5277, 8],
+          'FL': [27.6648, -81.5158, 6],
+          'GA': [32.1656, -82.9001, 7],
+          'HI': [19.8968, -155.5828, 6],
+          'IA': [41.8780, -93.0977, 7],
+          'ID': [44.0682, -114.7420, 6],
+          'IL': [40.6331, -89.3985, 7],
+          'IN': [39.8097, -86.1349, 7],
+          'KS': [39.0119, -98.4842, 7],
+          'KY': [37.8393, -84.2700, 7],
+          'LA': [30.9843, -91.9623, 7],
+          'MA': [42.2373, -71.5314, 8],
+          'MD': [39.0458, -76.6413, 8],
+          'ME': [45.2538, -69.4455, 7],
+          'MI': [44.3148, -85.6024, 6],
+          'MN': [46.7296, -94.6859, 6],
+          'MO': [37.9643, -91.8318, 7],
+          'MS': [32.3547, -89.3985, 7],
+          'MT': [46.8797, -110.3626, 6],
+          'NC': [35.7596, -79.0193, 7],
+          'ND': [47.5515, -101.0020, 7],
+          'NE': [41.4925, -99.9018, 7],
+          'NH': [43.1939, -71.5724, 8],
+          'NJ': [40.0583, -74.4057, 8],
+          'NM': [34.5199, -105.8701, 6],
+          'NV': [38.8026, -116.4194, 6],
+          'NY': [43.2994, -74.2179, 7],
+          'OH': [40.4173, -82.9071, 7],
+          'OK': [35.0078, -97.0929, 7],
+          'OR': [43.8041, -120.5542, 6],
+          'PA': [41.2033, -77.1945, 7],
+          'RI': [41.6809, -71.5118, 9],
+          'SC': [33.8361, -81.1637, 7],
+          'SD': [43.9695, -99.9018, 7],
+          'TN': [35.5175, -86.5804, 7],
+          'TX': [31.9686, -99.9018, 5],
+          'UT': [39.3210, -111.0937, 6],
+          'VA': [37.4316, -78.6569, 7],
+          'VT': [44.5588, -72.5778, 8],
+          'WA': [47.7511, -120.7401, 6],
+          'WI': [43.7844, -88.7879, 7],
+          'WV': [38.5976, -80.4549, 7],
+          'WY': [42.7475, -107.2085, 6]
+        };
+        
+        if (stateCenters[stateUpper]) {
+          const [lat, lng, zoom] = stateCenters[stateUpper];
+          map.setView([lat, lng], zoom);
+          radarMap.setView([lat, lng], zoom);
+        }
+      } else {
+        showStatusMessage(`No alerts found for state code: ${stateUpper}`);
+      }
+    }
+
+    // Filter alerts by event type
+    function filterAlertsByEvent(eventType) {
+      const eventSearch = eventType.toLowerCase();
+      const filteredAlerts = allAlerts.filter(alert => {
+        return alert.properties.event.toLowerCase().includes(eventSearch);
+      });
+      
+      if (filteredAlerts.length > 0) {
+        currentSearchTerm = eventType;
+        currentSearchType = 'event';
+        
+        displayAlertsList(filteredAlerts);
+        displayAlertsOnMap(filteredAlerts);
+        updateRadarAlerts(filteredAlerts);
+      } else {
+        showStatusMessage(`No alerts found for event type: ${eventType}`);
+      }
+    }
+
+    // Reset search
+    function resetSearch() {
+      currentSearchTerm = '';
+      currentSearchType = 'none';
+      
+      document.getElementById('location-search').value = '';
+      document.getElementById('event-search').value = '';
+      
+      fetchAllActiveAlerts()
+        .then(alerts => {
+          displayAlertsList(alerts);
+          displayAlertsOnMap(alerts);
+          updateRadarAlerts(alerts);
+          map.setView([39.8283, -98.5795], 4);
+          radarMap.setView([39.8283, -98.5795], 4);
+        });
+    }
+
+    // Display alerts list with recent alerts highlighted
+    function displayAlertsList(alerts) {
+      const alertsSection = document.querySelector('.alerts-section');
+      
+      if (!alerts || alerts.length === 0) {
+        alertsSection.innerHTML = `
+          <div class="alerts-header">
+            <h2>Current Weather Alerts</h2>
+          </div>
+          <div class="status-message">No weather alerts found</div>
+        `;
+        return;
+      }
+      
+      // Sort alerts by how recent they are (newest first)
+      alerts.sort((a, b) => {
+        return new Date(b.properties.sent) - new Date(a.properties.sent);
+      });
+      
+      const now = new Date();
+      const fifteenMinutesAgo = new Date(now.getTime() - (15 * 60 * 1000));
+      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+      const threeHoursAgo = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+      
+      let alertsListHTML = '';
+      
+      alerts.forEach(alert => {
+        const properties = alert.properties;
+        const eventColor = getEventColor(properties.event);
+        const severityClass = getSeverityClass(alert);
+        
+        const sentDate = new Date(properties.sent);
+        const isVeryRecent = sentDate > fifteenMinutesAgo;
+        const isRecent = sentDate > oneHourAgo && sentDate <= fifteenMinutesAgo;
+        const isNewish = sentDate > threeHoursAgo && sentDate <= oneHourAgo;
+        
+        const expiresDate = new Date(properties.expires);
+        const isExpired = expiresDate <= now;
+        
+        let alertCardClass = 'alert-card';
+        if (isExpired) alertCardClass += ' expired';
+        if (isVeryRecent) alertCardClass += ' very-recent';
+        else if (isRecent) alertCardClass += ' recent';
+        
+        alertsListHTML += `
+          <div class="${alertCardClass}" id="alert-${properties.id}">
+            <div class="alert-card-header" style="background-color: ${eventColor}; color: white;">
+              <div class="alert-card-title">
+                ${properties.event}
+                <span class="severity-label ${severityClass}">${properties.severity || 'Unknown'}</span>
+                ${isVeryRecent ? '<span class="recent-label">JUST ISSUED</span>' : 
+                  isRecent ? '<span class="recent-label">RECENT</span>' : 
+                  isNewish ? '<span class="recent-label">NEW</span>' : ''}
+                ${isExpired ? '<span class="expired-label">EXPIRED</span>' : ''}
+              </div>
+              <div class="alert-card-time">${sentDate.toLocaleString()}</div>
+            </div>
+            <div class="alert-card-body">
+              <div class="alert-meta">
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Area:</div>
+                  <div>${properties.areaDesc}</div>
+                </div>
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Effective:</div>
+                  <div>${new Date(properties.effective).toLocaleString()}</div>
+                </div>
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Expires:</div>
+                  <div>${new Date(properties.expires).toLocaleString()}</div>
+                </div>
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Status:</div>
+                  <div>${properties.status}</div>
+                </div>
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Certainty:</div>
+                  <div>${properties.certainty}</div>
+                </div>
+                <div class="alert-meta-row">
+                  <div class="alert-meta-label">Urgency:</div>
+                  <div>${properties.urgency}</div>
+                </div>
+              </div>
+              
+              <div class="alert-description">
+                <h4>Headline</h4>
+                <p>${properties.headline}</p>
+                
+                <h4>Description</h4>
+                <p>${properties.description.replace(/\n/g, '<br>')}</p>
+                
+                <h4>Instructions</h4>
+                <p>${properties.instruction ? properties.instruction.replace(/\n/g, '<br>') : 'No specific instructions provided.'}</p>
+                
+                <div class="alert-source">
+                  <p>Source: ${properties.senderName}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      alertsSection.innerHTML = `
+        <div class="alerts-header">
+          <h2>Current Weather Alerts${currentSearchTerm ? ': ' + currentSearchTerm : ''}</h2>
+          <div>${alerts.length} alert${alerts.length !== 1 ? 's' : ''} found</div>
+        </div>
+        ${alertsListHTML}
+      `;
+    }
+
+    // Get severity class for styling
+    function getSeverityClass(alert) {
+      const severity = alert.properties.severity ? alert.properties.severity.toLowerCase() : 'unknown';
+      return severityMap[severity] || 'severity-unknown';
+    }
+
+    // Show status message
+    function showStatusMessage(message) {
+      const alertsSection = document.querySelector('.alerts-section');
+      alertsSection.innerHTML = `
+        <div class="alerts-header">
+          <h2>Weather Alerts${currentSearchTerm ? ': ' + currentSearchTerm : ''}</h2>
+        </div>
+        <div class="status-message">${message}</div>
+      `;
+    }
+
+    // Set up auto-refresh of data
+    function setupAutoRefresh() {
+      // Refresh every 5 minutes
+      refreshInterval = setInterval(() => {
+        fetchAllActiveAlerts()
+          .then(alerts => {
+            if (currentSearchType === 'none') {
+              displayAlertsList(alerts);
+              displayAlertsOnMap(alerts);
+              updateRadarAlerts(alerts);
+            } else if (currentSearchType === 'state') {
+              filterAlertsByState(currentSearchTerm);
+            } else if (currentSearchType === 'event') {
+              filterAlertsByEvent(currentSearchTerm);
+            }
+          });
+      }, 30 * 1000); // 30 Seconds
+    }
+
+    // Initialize when DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      initApp();
+    });
+  </script>
 </body>
 </html>
